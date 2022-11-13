@@ -18,9 +18,9 @@ from datadog_api_client.v2.model.metric_series import MetricSeries
 
 # *** Update these values to match your configuration ***
 IS_SANDBOX = False
-KEY_FILE = os.environ['SALESFORCE_KEY']
-ISSUER = '3MVG9Gmy2zmPB01ph7pKhLznrFjjY9TpOF6KZo56uTiuGKlgIfo_i.jryjRugPuML17hjGrjQYQq76T8N.hgP'
-SUBJECT = 'sysuser@sunpower.com.int'
+KEY_FILE = os.environ['SALESFORCE_KEY'] #add the salesforce key as a github secret
+ISSUER = 'the consumer key from your application'
+SUBJECT = 'your-sf-user@email.tld'
 
 # *******************************************************
 DOMAIN = 'test' if IS_SANDBOX else 'login'
@@ -32,7 +32,7 @@ DOMAIN = 'test' if IS_SANDBOX else 'login'
 claim = {
     'iss': ISSUER,
     'exp': int(time.time()) + 300,
-    'aud': 'https://test.salesforce.com',
+    'aud': 'https://test.salesforce.com', #this is a test env, can change as per the environment
     'sub': SUBJECT,
 }
 assertion = jwt.encode(claim, KEY_FILE, algorithm='RS256', headers={'alg':'RS256'})
@@ -50,19 +50,24 @@ token = dict['access_token']
 
 bt = "Bearer "+token
 headers = {'authorization': bt}
-prefix = 'https://sunpower--int.sandbox.my.salesforce.com/services/data/v54.0/query?q='
+prefix = 'https://int.sandbox.my.salesforce.com/services/data/v54.0/query?q='
 
 ####### Timestamping for dynamic query ######
+# use these variables when you want the query with the specific timestamp
 ts_15m = datetime.now() - timedelta(minutes = 15)
 sql_ts_15m = str(ts_15m).replace(" ", "T")
 ts_30m = datetime.now() - timedelta(minutes = 30)
 sql_ts_30m = str(ts_30m).replace(" ", "T")
 
-query_prefix = "SELECT Count(Id) FROM Lead WHERE RecordTypeId = '0128000000037AKAAY' AND CreatedDate >= "
+# below are 2 sample queries based on dynamic timestamps. Yours' can vary.
 
+query_prefix = "SELECT Count(Id) FROM Table WHERE RecordTypeId = '01280037AKBXY' AND CreatedDate >= "
 query1 = query_prefix+sql_ts_15m+"-05:00"+" AND "+ "CreatedDate < "+ sql_ts_30m+"-05:00"+" AND LeadSource = 'Web' AND Source_System__c != null"
 print(query1)
+
+#SFDC endpoint with query1.
 url1 = prefix+query1
+
 r1 = requests.get(url1, headers=headers)
 #print(r1.json())
 dict1 = r1.json()
@@ -73,7 +78,10 @@ print("expr0 at 15 mins:",lead_count_recent_value)
 
 query2 = query_prefix+sql_ts_15m+"-05:00"+" AND LeadSource = 'Web' AND Source_System__c != null"
 print(query2)
+
+#SFDC endpoint with query.
 url2 = prefix+query2
+
 r2 = requests.get(url2, headers=headers)
 #print(r2.json())
 dict2 = r2.json()
@@ -83,7 +91,8 @@ print(ts_30m)
 print("expr0 at 30 mins:",lead_count_total_value)
 
 ####### Datadog custom metric generation ######
-     
+# This section picks up the query output and sends datadog as a count metric which is later used to create a custom metric monitor.
+
 body_lead_count_recent = MetricPayload(
     series=[
         MetricSeries(
@@ -131,5 +140,3 @@ with ApiClient(configuration) as api_client:
     api_instance = MetricsApi(api_client)
     response = api_instance.submit_metrics(body=body_lead_count_recent)
     response1 = api_instance.submit_metrics(body=body_lead_count_total)
-    #print(response)
-    #print(response1)
