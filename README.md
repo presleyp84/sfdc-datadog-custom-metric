@@ -1,5 +1,5 @@
 # sfdc-datadog-custom-metric
-Python code to authenticate via JWT and query SFDC database and push custom metric to Datadog
+Python code to authenticate Salesforce application endpoint via JWT and query SFDC database and push the output as a custom metric to Datadog
 
 #### Usage
 1. Fork the repo.
